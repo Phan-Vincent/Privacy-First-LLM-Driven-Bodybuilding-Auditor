@@ -29,8 +29,7 @@ def run_pipeline(input_csv: Path, output_json: Path) -> None:
         input_csv: Input CSV path.
         output_json: Output JSON report path.
     """
-    expected_columns = ["athlete", "date", "exercise", "reps", "weight"]
-    records = read_csv_safely(input_csv, expected_columns=expected_columns)
+    records = read_csv_safely(input_csv)
     processed = normalize_records(records)
     result = call_llm_audit(processed)
     write_json_report(result, output_json)
