@@ -1,0 +1,4 @@
+python-dotenv==1.0.1
+pandas==2.2.2
+openai==1.51.2
+jsonschema==4.23.0
