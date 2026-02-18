@@ -1,3 +1,5 @@
+![Tests](https://github.com/Phan-Vincent/Privacy-First-LLM-Driven-Bodybuilding-Auditor/actions/workflows/tests.yml/badge.svg)
+
 # Privacy-First LLM-Driven Bodybuilding Auditor
 
 A secure, modular pipeline that ingests structured nutrition and strength training data, computes deterministic performance metrics, and generates a strictly validated LLM-based weekly audit.
