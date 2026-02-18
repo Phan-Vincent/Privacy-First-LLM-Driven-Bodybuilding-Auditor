@@ -3,49 +3,21 @@
 from __future__ import annotations
 
 import csv
-import re
 from pathlib import Path
-from typing import Any, Iterable
-
-
-FORMULA_PREFIXES: tuple[str, ...] = ("=", "+", "-", "@")
-HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
+from typing import Any
 
 
 class IngestionError(Exception):
     """Raised when ingestion operations fail."""
 
-
 class SchemaMismatchError(IngestionError):
-    """Raised when CSV headers do not match the expected schema."""
+    """Raised when CSV schema does not match expected columns."""
+    pass
 
 
-def _sanitize_cell(value: str | None) -> str:
-    """Sanitize a single CSV cell.
 
-    Sanitization rules:
-    - Remove null bytes.
-    - Trim surrounding whitespace.
-    - Strip spreadsheet formula prefixes.
-    - Remove HTML tags.
-
-    Args:
-        value: Raw CSV cell value.
-
-    Returns:
-        Sanitized cell value.
-    """
-    normalized = (value or "").replace("\x00", "").strip()
-
-    while normalized.startswith(FORMULA_PREFIXES):
-        normalized = normalized[1:].lstrip()
-
-    normalized = HTML_TAG_PATTERN.sub("", normalized)
-    return normalized
-
-
-def sanitize_csv_row(row: dict[str, str | None]) -> dict[str, str]:
-    """Sanitize a CSV row by cleaning keys and values.
+def sanitize_csv_row(row: dict[str, str]) -> dict[str, str]:
+    """Sanitize a CSV row by trimming whitespace and removing null characters.
 
     Args:
         row: Raw CSV row mapping column names to values.
@@ -55,82 +27,59 @@ def sanitize_csv_row(row: dict[str, str | None]) -> dict[str, str]:
     """
     sanitized: dict[str, str] = {}
     for key, value in row.items():
-        safe_key = _sanitize_cell(key)
-        safe_value = _sanitize_cell(value)
+        safe_key = key.strip().replace("\x00", "") if key is not None else ""
+        safe_value = value.strip().replace("\x00", "") if value is not None else ""
         sanitized[safe_key] = safe_value
     return sanitized
 
 
-def _validate_extension(file_path: Path) -> None:
-    """Validate that the file path points to a CSV file.
+def read_csv_safely(
+    file_path: Path,
+    expected_columns: list[str] | None = None,
+) -> list[dict[str, Any]]:
 
-    Args:
-        file_path: Path to validate.
-
-    Raises:
-        IngestionError: If the path is not a CSV file.
-    """
-    if file_path.suffix.lower() != ".csv":
-        raise IngestionError(f"Invalid file extension for '{file_path.name}'. Expected .csv")
-
-
-def _validate_schema(actual_columns: list[str], expected_columns: Iterable[str]) -> None:
-    """Validate CSV schema against expected columns.
-
-    Args:
-        actual_columns: Header columns discovered in the CSV.
-        expected_columns: Required columns expected by the pipeline.
-
-    Raises:
-        SchemaMismatchError: If expected and actual headers differ.
-    """
-    expected = [_sanitize_cell(column) for column in expected_columns]
-    actual = [_sanitize_cell(column) for column in actual_columns]
-
-    if expected != actual:
-        missing = [col for col in expected if col not in actual]
-        unexpected = [col for col in actual if col not in expected]
-        raise SchemaMismatchError(
-            "CSV schema mismatch. "
-            f"Expected columns: {expected}. "
-            f"Actual columns: {actual}. "
-            f"Missing: {missing or 'none'}. "
-            f"Unexpected: {unexpected or 'none'}."
-        )
-
-
-def read_csv_safely(file_path: Path, expected_columns: list[str]) -> list[dict[str, Any]]:
-    """Read CSV content with sanitization and strict schema checks.
+    """Read CSV content with minimal sanitization and safety checks.
 
     Args:
         file_path: Path to the CSV file.
-        expected_columns: Ordered list of required column names.
+        required_columns: Optional set of required column names.
 
     Returns:
         List of sanitized row dictionaries.
 
     Raises:
         IngestionError: If CSV ingestion fails.
-        SchemaMismatchError: If the CSV schema does not match expected columns.
+        SchemaMismatchError: If required columns are missing.
     """
     if not file_path.exists() or not file_path.is_file():
         raise IngestionError(f"CSV file not found: {file_path}")
-
-    _validate_extension(file_path)
+    # Reject non-CSV extensions
+    if file_path.suffix.lower() != ".csv":
+        raise IngestionError("Only .csv files are allowed")
 
     rows: list[dict[str, Any]] = []
+
     try:
         with file_path.open("r", newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
-            if reader.fieldnames is None:
-                raise SchemaMismatchError("CSV file is missing a header row")
 
-            _validate_schema(reader.fieldnames, expected_columns)
+            # NEW: Schema validation
+            if expected_columns is not None:
+                actual_columns = set(reader.fieldnames or [])
+                expected_set = set(expected_columns)
+                if not expected_set.issubset(actual_columns):
+                    missing = expected_set - actual_columns
+                    raise SchemaMismatchError(
+                        f"Missing required columns: {missing}"
+                    )
+
 
             for row in reader:
                 rows.append(sanitize_csv_row(row))
+
     except SchemaMismatchError:
-        raise
+        raise  # Preserve specific schema errors
+
     except (OSError, csv.Error) as exc:
         raise IngestionError("Failed to ingest CSV data") from exc
 
