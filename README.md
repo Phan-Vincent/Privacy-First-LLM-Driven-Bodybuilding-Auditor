@@ -4,7 +4,7 @@ A secure, modular pipeline that ingests structured nutrition and strength traini
 
 This project demonstrates applied AI engineering, prompt injection hardening, schema validation, cost guardrails, and secure key management within a real-world personal analytics context.
 
-It is intentionally built without unnecessary infrastructure or UI layers. The goal is clarity, security, and correctness.
+It is intentionally built without unnecessary infrastructure or UI layers. The goal is clarity, security, and soundness.
 
 ---
 
