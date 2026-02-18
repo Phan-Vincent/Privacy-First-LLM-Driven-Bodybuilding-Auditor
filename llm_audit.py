@@ -1,4 +1,4 @@
-"""LLM auditing module for secure model interactions and strict JSON responses."""
+"""LLM auditing module for secure model interactions and structured responses."""
 
 from __future__ import annotations
 
@@ -6,10 +6,6 @@ import json
 import logging
 import os
 from typing import Any
-
-from dotenv import load_dotenv
-from openai import OpenAI
-from openai import OpenAIError
 
 
 logger = logging.getLogger(__name__)
