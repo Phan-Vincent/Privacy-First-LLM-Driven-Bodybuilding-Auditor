@@ -149,11 +149,13 @@ def _build_prompt_messages(serialized_metrics: str) -> list[dict[str, str]]:
 def generate_audit(processed_metrics: dict[str, Any]) -> dict[str, Any]:
     """Generate a strict JSON audit from processed deterministic metrics."""
     load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
+    # LLM_API_KEY is the canonical name; OPENAI_API_KEY is honored for
+    # backward compatibility.
+    api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
     model_name = os.getenv("LLM_MODEL", "gpt-4o-mini")
 
     if not api_key:
-        raise LLMAuditError("OPENAI_API_KEY is not configured")
+        raise LLMAuditError("LLM_API_KEY is not configured")
 
     safe_payload = _safe_metrics_payload(processed_metrics)
 
